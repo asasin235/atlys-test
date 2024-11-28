@@ -5,6 +5,13 @@ import os
 import sqlite3
 from src.models import Settings, Product
 from src.cache import Cache
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import csv
+import time
+
+from src.utils import convert_price
+
 
 class Scraper:
     def __init__(self, settings: Settings):
@@ -31,36 +38,57 @@ class Scraper:
 
             for attempt in range(3):
                 try:
-                    response = requests.get(url, proxies={"http": proxy, "https": proxy} if proxy else None)
-                    response.raise_for_status()
-                    break
-                except requests.exceptions.RequestException as e:
-                    if attempt == 2:
-                        raise requests.exceptions.HTTPError(f"Failed to retrieve page {page}: {str(e)}")
+                    options = Options()
+                    options.add_argument("--headless")  # Runs Chrome in headless mode.
+                    options.add_argument("--disable-gpu")  # Disable GPU to avoid errors.
 
-            soup = BeautifulSoup(response.text, 'html.parser')
-            product_elements = soup.find_all('div', class_='product')
+                    driver = webdriver.Chrome(options=options)
+                    driver.get(url)
+                    time.sleep(5)  # Wait for the page to load.
+
+                    soup = BeautifulSoup(driver.page_source, 'html.parser')
+                    product_elements = soup.find_all('div', class_='product-inner')
+
+                    driver.quit()
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise Exception(f"Failed to retrieve page {page}: {str(e)}")
 
             for product_element in product_elements:
-                title = product_element.find('h2', class_='woocommerce-loop-product__title').text.strip()
-                price = float(product_element.find('span', class_='price').text.strip().replace('₹', '').replace(',', ''))
-                image_url = product_element.find('img', class_='wp-post-image')['src']
-                image_path = self.download_image(image_url)
+                title_element = product_element.find('h2', class_='woo-loop-product__title')
+                price_element = product_element.find('span', class_='woocommerce-Price-amount amount')
+                image_element = product_element.find('img',
+                                                     class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail entered lazyloaded')
 
-                product = Product(title=title, price=price, image_url=image_url, image_path=image_path)
-                self.insert_product(product)
-                products.append(product)
+                if title_element and price_element and image_element:
+                    title = title_element.text.strip()
+                    price_str = price_element.text.strip()
+                    price = convert_price(price_str)
+                    image_url = image_element['src']
+                    image_path = self.download_image(image_url)
+
+                    product = Product(title=title, price=price, image_url=image_url, image_path=image_path)
+                    self.insert_product(product)
+                    products.append(product)
 
             page += 1
 
         self.save_to_json(products)
         self.notify(len(products))
 
-    def download_image(self, url):
-        response = requests.get(url)
-        image_path = os.path.join('images', os.path.basename(url))
-        with open(image_path, 'wb') as f:
-            f.write(response.content)
+    def download_image(self, image_url):
+        image_name = image_url.split("/")[-1]
+        image_path = f"images/{image_name}"
+
+        # Create the "images" directory if it does not exist
+        if not os.path.exists("images"):
+            os.makedirs("images")
+
+        response = requests.get(image_url)
+        with open(image_path, 'wb') as file:
+            file.write(response.content)
+
         return image_path
 
     def insert_product(self, product: Product):

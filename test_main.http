@@ -9,3 +9,20 @@ GET http://127.0.0.1:8000/hello/User
 Accept: application/json
 
 ###
+# curl -X POST "http://localhost:8000/scrape"
+#-H "Authorization: Bearer your_static_token"
+#-H "Content-Type: application/json"
+#-d '{
+#  "pages": 5,
+#  "proxy": "http://your-proxy-url:port"
+#}'
+POST http://localhost:8000/scrape
+Authorization: Bearer your_static_token
+Content-Type: application/json
+
+{
+  "pages": 1
+}
+
+###
+
