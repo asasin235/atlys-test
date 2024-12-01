@@ -84,6 +84,4 @@ scraper-project/
 └── README.md
 ```
 
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+Made by Aatif Rashid For 
