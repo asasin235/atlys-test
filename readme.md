@@ -18,12 +18,11 @@ This project is a web scraper that extracts product information from a specified
 - `beautifulsoup4`
 - `selenium`
 - `sqlite3`
-- `unittest`
-- `unittest.mock`
 - `json`
 - `os`
 - `logging`
-
+## Postman Curls
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/23117922-34380fb6-23d9-41b4-a7ab-a4784cce4fd8?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D23117922-34380fb6-23d9-41b4-a7ab-a4784cce4fd8%26entityType%3Dcollection%26workspaceId%3Dbfa5b207-2c60-4a90-b59d-fb4e1a2cab23#?env%5BNew%20Environment%5D=W3sia2V5IjoiYXV0aCIsInZhbHVlIjoiIiwidHlwZSI6ImRlZmF1bHQiLCJlbmFibGVkIjp0cnVlLCJzZXNzaW9uVmFsdWUiOiJCZWFyZXIgeW91cl9zdGF0aWNfdG9rZW4iLCJjb21wbGV0ZVNlc3Npb25WYWx1ZSI6IkJlYXJlciB5b3VyX3N0YXRpY190b2tlbiIsInNlc3Npb25JbmRleCI6MH1d)
 ## Installation
 
 1. Clone the repository:
