@@ -3,7 +3,7 @@
 This project is a web scraper that extracts product information from a specified website and stores the data in a SQLite database and a JSON file. The scraper uses Selenium for web automation and BeautifulSoup for parsing HTML content.
 
 ## Features
-
+- Used selenium as a web automation tool because the page was lazy loaded
 - Scrapes product information including title, price, and image URL.
 - Downloads product images.
 - Stores product data in a SQLite database.
