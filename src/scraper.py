@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 import sqlite3
+import logging
 from src.models import Settings, Product
 from src.cache import Cache
 from selenium import webdriver
@@ -10,6 +11,11 @@ from selenium.webdriver.chrome.options import Options
 import time
 
 from src.utils import convert_price
+
+from src.logging_config import setup_logging
+
+
+setup_logging()
 
 
 class Scraper:
@@ -26,7 +32,7 @@ class Scraper:
                           (title TEXT, price REAL, image_url TEXT, image_path TEXT)''')
         self.conn.commit()
 
-    ```python
+
 
     def scrape_products(self):
         products = []
@@ -57,7 +63,10 @@ class Scraper:
                 options.add_argument("--disable-gpu")
 
                 driver = webdriver.Chrome(options=options)
-                driver.get(url)
+                if proxy:
+                    driver.get(url,proxies={"http": proxy, "https": proxy})
+                else:
+                    driver.get(url)
                 time.sleep(5)
 
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -70,38 +79,36 @@ class Scraper:
                 return product_elements
             except Exception as e:
                 if attempt == 2:
-                    raise Exception(f"Failed to retrieve page {page}: {str(e)}")
+                    raise RuntimeError(f"Failed to retrieve page {page}: {str(e)}")
 
     def extract_product(self, product_element):
         title_element = product_element.find('h2', class_='woo-loop-product__title')
         price_element = product_element.find('span', class_='woocommerce-Price-amount amount')
         image_element = product_element.find('img',
                                              class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail entered lazyloaded')
-        image_element_type2 = product_element.find('img',
-                                                   class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail')
 
-        if title_element and price_element and (image_element or image_element_type2):
+        if title_element and price_element and image_element:
             title = title_element.text.strip()
             price_str = price_element.text.strip()
             price = convert_price(price_str)
-            image_url = image_element['src'] if image_element else image_element_type2['src']
-            if image_url.startswith('data:image/svg+xml'):
-                print("Skipping product with placeholder image")
-                return None
+            image_url = image_element['src'] if image_element is not None else None
             image_path = self.download_image(image_url)
+
+            if image_url is None:
+                logging.warning("Image URL is missing fro product: %s", title)
 
             return Product(title=title, price=price, image_url=image_url, image_path=image_path)
         else:
-            print("Skipping invalid product")
+            logging.warning("Skipping invalid product")
             if not title_element:
-                print("Title element is missing")
+                logging.warning("Title element is missing")
             if not price_element:
-                print("Price element is missing")
-            if not image_element and not image_element_type2:
-                print("Image element is missing")
+                logging.warning("Price element is missing")
+            if not image_element:
+                logging.warning("Image element is missing")
             return None
 
-    ```
+
 
     def download_image(self, image_url):
         image_name = image_url.split("/")[-1]
@@ -129,7 +136,7 @@ class Scraper:
 
     def save_to_json(self, products):
         with open(self.db_path, 'w') as f:
-            json.dump([product.dict() for product in products], f)
+            json.dump([product.model_dump() for product in products], f)
 
     def notify(self, count):
         print(f"Scraping completed successfully. {count} products were scraped and updated in the database.")

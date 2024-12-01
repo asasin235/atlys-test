@@ -8,5 +8,5 @@ class Settings(BaseModel):
 class Product(BaseModel):
     title: str
     price: float
-    image_url: str
+    image_url: str or None
     image_path: str
