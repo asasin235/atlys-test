@@ -86,6 +86,8 @@ class Scraper:
         price_element = product_element.find('span', class_='woocommerce-Price-amount amount')
         image_element = product_element.find('img',
                                              class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail entered lazyloaded')
+        if image_element is None:
+            logging.warning("Image element is missing for product: %s", title_element.text.strip())
 
         if title_element and price_element and image_element:
             title = title_element.text.strip()
@@ -95,7 +97,7 @@ class Scraper:
             image_path = self.download_image(image_url)
 
             if image_url is None:
-                logging.warning("Image URL is missing fro product: %s", title)
+                logging.warning("Image URL is missing for product: %s", title)
 
             return Product(title=title, price=price, image_url=image_url, image_path=image_path)
         else:
