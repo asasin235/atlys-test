@@ -27,7 +27,7 @@ This project is a web scraper that extracts product information from a specified
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/scraper-project.git
+    git clone https://github.com/asasin235/scraper-project.git
     cd scraper-project
     ```
 
