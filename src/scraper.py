@@ -7,7 +7,6 @@ from src.models import Settings, Product
 from src.cache import Cache
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import csv
 import time
 
 from src.utils import convert_price
@@ -27,6 +26,8 @@ class Scraper:
                           (title TEXT, price REAL, image_url TEXT, image_path TEXT)''')
         self.conn.commit()
 
+    ```python
+
     def scrape_products(self):
         products = []
         page = 1
@@ -36,39 +37,10 @@ class Scraper:
             url = f"https://dentalstall.com/shop/page/{page}/"
             proxy = self.settings.proxy if self.settings.proxy else None
 
-            for attempt in range(3):
-                try:
-                    options = Options()
-                    options.add_argument("--headless")  # Runs Chrome in headless mode.
-                    options.add_argument("--disable-gpu")  # Disable GPU to avoid errors.
-
-                    driver = webdriver.Chrome(options=options)
-                    driver.get(url)
-                    time.sleep(5)  # Wait for the page to load.
-
-                    soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    product_elements = soup.find_all('div', class_='product-inner')
-
-                    driver.quit()
-                    break
-                except Exception as e:
-                    if attempt == 2:
-                        raise Exception(f"Failed to retrieve page {page}: {str(e)}")
-
+            product_elements = self.retrieve_page_elements(url, proxy, page)
             for product_element in product_elements:
-                title_element = product_element.find('h2', class_='woo-loop-product__title')
-                price_element = product_element.find('span', class_='woocommerce-Price-amount amount')
-                image_element = product_element.find('img',
-                                                     class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail entered lazyloaded')
-
-                if title_element and price_element and image_element:
-                    title = title_element.text.strip()
-                    price_str = price_element.text.strip()
-                    price = convert_price(price_str)
-                    image_url = image_element['src']
-                    image_path = self.download_image(image_url)
-
-                    product = Product(title=title, price=price, image_url=image_url, image_path=image_path)
+                product = self.extract_product(product_element)
+                if product:
                     self.insert_product(product)
                     products.append(product)
 
@@ -76,6 +48,60 @@ class Scraper:
 
         self.save_to_json(products)
         self.notify(len(products))
+
+    def retrieve_page_elements(self, url, proxy, page):
+        for attempt in range(3):
+            try:
+                options = Options()
+                options.add_argument("--headless")
+                options.add_argument("--disable-gpu")
+
+                driver = webdriver.Chrome(options=options)
+                driver.get(url)
+                time.sleep(5)
+
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                product_elements = soup.find_all('div', class_='product-inner')
+
+                driver.quit()
+                return product_elements
+            except Exception as e:
+                if attempt == 2:
+                    raise Exception(f"Failed to retrieve page {page}: {str(e)}")
+
+    def extract_product(self, product_element):
+        title_element = product_element.find('h2', class_='woo-loop-product__title')
+        price_element = product_element.find('span', class_='woocommerce-Price-amount amount')
+        image_element = product_element.find('img',
+                                             class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail entered lazyloaded')
+        image_element_type2 = product_element.find('img',
+                                                   class_='attachment-woocommerce_thumbnail size-woocommerce_thumbnail')
+
+        if title_element and price_element and (image_element or image_element_type2):
+            title = title_element.text.strip()
+            price_str = price_element.text.strip()
+            price = convert_price(price_str)
+            image_url = image_element['src'] if image_element else image_element_type2['src']
+            if image_url.startswith('data:image/svg+xml'):
+                print("Skipping product with placeholder image")
+                return None
+            image_path = self.download_image(image_url)
+
+            return Product(title=title, price=price, image_url=image_url, image_path=image_path)
+        else:
+            print("Skipping invalid product")
+            if not title_element:
+                print("Title element is missing")
+            if not price_element:
+                print("Price element is missing")
+            if not image_element and not image_element_type2:
+                print("Image element is missing")
+            return None
+
+    ```
 
     def download_image(self, image_url):
         image_name = image_url.split("/")[-1]
